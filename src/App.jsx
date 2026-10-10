@@ -22,6 +22,16 @@ const profile = rows => Object.keys(rows[0] || {}).map(k => { const v = rows.map
 const group = (rows, x, y, agg, top) => { const g = {}; rows.forEach(r => { const k = r[x]; (g[k] = g[k] || []).push(agg === 'count' ? 1 : +r[y] || 0) }); let o = Object.entries(g).map(([k, v]) => ({ k, v: AG[agg](v) })); const dateLike = o.every(d => /^\d{4}-\d{2}/.test(d.k) || /^(jan|feb|mar)/i.test(d.k)); if (!dateLike) o.sort((a, b) => b.v - a.v); else o.sort((a, b) => a.k > b.k ? 1 : -1); return top ? o.slice(0, top) : o.slice(0, 24) }
 const fmt = n => Math.abs(n) >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : Math.abs(n) >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : (+n).toFixed(n % 1 ? 1 : 0)
 const trunc = (s, max = 10) => { const str = String(s ?? ''); return str.length > max ? str.slice(0, max - 1) + '…' : str }
+const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const formatTick = (val, n) => {
+  const s = String(val ?? '')
+  const m = s.match(/^\d{4}-(\d{2})$/)
+  if (m) {
+    const idx = parseInt(m[1], 10)
+    if (idx >= 1 && idx <= 12) return monthNames[idx]
+  }
+  return trunc(s, n <= 4 ? 14 : n <= 8 ? 10 : 7)
+}
 const bins = (rows, y) => { const v = rows.map(r => +r[y]).filter(n => !isNaN(n)); if (!v.length) return []; const lo = Math.min(...v), hi = Math.max(...v), k = 10, s = (hi - lo) / k || 1, c = Array(k).fill(0); v.forEach(n => c[Math.min(k - 1, Math.floor((n - lo) / s))]++); return c.map((n, i) => ({ k: fmt(lo + i * s), v: n })) }
 const xf = (d, t) => { if (!t || t === 'none') return d; const o = d.map(p => ({ ...p })); if (t === 'run') { let s = 0; o.forEach(p => { s += p.v; p.v = s }) } else if (t === 'ma') o.forEach((p, i) => { const q = d.slice(Math.max(0, i - 2), i + 1); p.v = q.reduce((a, b) => a + b.v, 0) / q.length }); else { const lag = t === 'yoy' ? 12 : 1; o.forEach((p, i) => { const b = d[i - lag]; p.v = b && b.v ? (p.v - b.v) / Math.abs(b.v) * 100 : 0 }) }; return o }
 const pear = (data, a, b) => { const x = data.map(r => +r[a.name] || 0), y = data.map(r => +r[b.name] || 0); let s = 0, sa = 0, sb = 0; x.forEach((v, k) => { s += (v - a.mean) * (y[k] - b.mean); sa += (v - a.mean) ** 2; sb += (y[k] - b.mean) ** 2 }); return s / Math.sqrt(sa * sb) || 0 }
@@ -82,13 +92,14 @@ function Chart({ w, rows, onPick }) {
     const t = d.reduce((a, b) => a + Math.abs(b.v), 0) || 1; let a0 = -Math.PI / 2
     return <svg viewBox="0 0 300 180" width="100%">{d.slice(0, 8).map((p, i) => { const a = Math.abs(p.v) / t * Math.PI * 2, a1 = a0 + a, c = [150 + 70 * Math.cos(a0), 90 + 70 * Math.sin(a0), 150 + 70 * Math.cos(a1), 90 + 70 * Math.sin(a1)]; const path = `M150 90L${c[0]} ${c[1]}A70 70 0 ${a > Math.PI ? 1 : 0} 1 ${c[2]} ${c[3]}Z`; a0 = a1; return <M.path key={i} onClick={() => onPick && onPick(x, p.k)} d={path} fill={COL[i % 8]} initial={{ opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * .06 }} style={{ transformOrigin: '150px 90px' }} /> })}<circle cx="150" cy="90" r="34" fill="var(--panel)" />{d.slice(0, 8).map((p, i) => <g key={i}><rect x="232" y={10 + i * 14} width="8" height="8" fill={COL[i % 8]} /><text x="244" y={18 + i * 14} fontSize="8.5" fill="var(--mut)">{trunc(p.k, 10)} {(Math.abs(p.v) / t * 100).toFixed(0)}%</text></g>)}</svg>
   }
-  const X = i => 30 + (i + .5) * (260 / n), Y = v => 150 - v / mx * 130
+  const X = i => 36 + (i + .5) * (268 / n), Y = v => 146 - v / mx * 126
   const pts = d.map((p, i) => `${X(i)},${Y(p.v)}`).join(' ')
-  return <svg viewBox="0 0 300 180" width="100%">
-    {[0, .5, 1].map(f => <g key={f}><line x1="30" x2="290" y1={150 - f * 130} y2={150 - f * 130} stroke="var(--line)" strokeDasharray="2 3" /><text x="26" y={153 - f * 130} fontSize="8" fill="var(--mut)" textAnchor="end">{fmt(mx * f)}</text></g>)}
-    {(type === 'bar' || type === 'hist') && d.map((p, i) => { const bw = Math.min(260 / n * .7, 40), h = Math.max(0, 150 - Y(p.v)); return <M.rect key={i} onClick={() => onPick && onPick(x, p.k)} style={{ cursor: onPick ? 'pointer' : 'default' }} x={X(i) - bw / 2} width={bw} rx="3" fill={COL[i % 8]} initial={{ height: 0, y: 150 }} animate={{ height: h, y: 150 - h }} transition={{ delay: i * .03, type: 'spring', stiffness: 120 }}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title></M.rect> })}
-    {(type === 'line' || type === 'area') && <>{type === 'area' && <M.polygon points={`${X(0)},150 ${pts} ${X(n - 1)},150`} fill={COL[1]} initial={{ opacity: 0 }} animate={{ opacity: .22 }} />}<M.polyline points={pts} fill="none" stroke={COL[type === 'area' ? 1 : 0]} strokeWidth="2.5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1 }} />{d.map((p, i) => <circle key={i} cx={X(i)} cy={Y(p.v)} r="2.5" fill={COL[0]}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title></circle>)}</>}
-    {d.map((p, i) => (n <= 14 || i % Math.ceil(n / 12) === 0) && <text key={i} x={X(i)} y="165" fontSize={n > 8 ? "7.5" : "8.5"} fill="var(--mut)" textAnchor="middle"><title>{String(p.k)}</title>{trunc(p.k, n <= 4 ? 14 : n <= 8 ? 10 : 7)}</text>)}
+  const isAngled = n > 6
+  return <svg viewBox="0 0 315 195" width="100%">
+    {[0, .5, 1].map(f => <g key={f}><line x1="36" x2="305" y1={146 - f * 126} y2={146 - f * 126} stroke="var(--line)" strokeDasharray="2 3" /><text x="32" y={149 - f * 126} fontSize="8" fill="var(--mut)" textAnchor="end">{fmt(mx * f)}</text></g>)}
+    {(type === 'bar' || type === 'hist') && d.map((p, i) => { const bw = Math.min(Math.max(10, 268 / n * .7), 36), h = Math.max(0, 146 - Y(p.v)); return <M.rect key={i} onClick={() => onPick && onPick(x, p.k)} style={{ cursor: onPick ? 'pointer' : 'default' }} x={X(i) - bw / 2} width={bw} rx="4" fill={COL[i % 8]} initial={{ height: 0, y: 146 }} animate={{ height: h, y: 146 - h }} transition={{ delay: i * .03, type: 'spring', stiffness: 120 }}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title></M.rect> })}
+    {(type === 'line' || type === 'area') && <>{type === 'area' && <M.polygon points={`${X(0)},146 ${pts} ${X(n - 1)},146`} fill={COL[1]} initial={{ opacity: 0 }} animate={{ opacity: .22 }} />}<M.polyline points={pts} fill="none" stroke={COL[type === 'area' ? 1 : 0]} strokeWidth="2.5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1 }} />{d.map((p, i) => <circle key={i} cx={X(i)} cy={Y(p.v)} r="2.5" fill={COL[0]}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title></circle>)}</>}
+    {d.map((p, i) => (n <= 14 || i % Math.ceil(n / 12) === 0) && <text key={i} x={X(i)} y="164" fontSize={n > 8 ? "7.5" : "8"} fill="var(--mut)" textAnchor={isAngled ? "end" : "middle"} transform={isAngled ? `rotate(-35, ${X(i)}, 164)` : undefined}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title>{formatTick(p.k, n)}</text>)}
   </svg>
 }
 
@@ -353,7 +364,21 @@ export default function App() {
       {tab === 'chat' && <>
         <h2>AI Chat</h2><div className="sub">Describe what you need in plain language — visuals are generated onto your dashboard.</div>
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 320 }}>
-          {chat.map((m, i) => <M.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={'msg ' + m.r}>{m.t}{m.w && <div style={{ background: 'var(--panel)', borderRadius: 8, padding: 6, marginTop: 8, minWidth: 240 }}><Chart w={m.w} rows={rows} /></div>}</M.div>)}
+          {chat.map((m, i) => <M.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={'msg ' + m.r}>
+            <div style={{ lineHeight: 1.5 }}>{m.t}</div>
+            {m.w && <div className="chat-card-widget">
+              <div className="chat-card-header">
+                <div className="chat-card-meta">
+                  <span className="chat-badge">{m.w.type}</span>
+                  <span className="chat-card-title">{m.w.title || chartTitle(m.w)}</span>
+                </div>
+                <button className="chat-pin-btn" onClick={() => add(m.w)}>+ Add to Dashboard</button>
+              </div>
+              <div className="chat-card-canvas">
+                <Chart w={m.w} rows={rows} />
+              </div>
+            </div>}
+          </M.div>)}
           <div className="row" style={{ marginTop: 'auto' }}>
             <label className="chip"><input type="checkbox" checked={ai} onChange={e => setAi(e.target.checked)} /> ✦ Gemini AI</label>
             <input style={{ flex: 1, minWidth: 180 }} value={inp} onChange={e => setInp(e.target.value)} onKeyDown={e => e.key === 'Enter' && send(inp)} placeholder="e.g. average profit by region pie chart" />

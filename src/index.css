@@ -142,6 +142,70 @@ th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: lef
 .msg { padding: 10px 12px; border-radius: 12px; max-width: 80%; line-height: 1.45; }
 .msg.u { background: var(--ac); color: #fff; align-self: flex-end; max-width: 92%; }
 .msg.a { background: var(--panel2); align-self: flex-start; max-width: 92%; }
+.chat-card-widget {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  min-width: 300px;
+  max-width: 100%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+.chat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  gap: 10px;
+}
+.chat-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+.chat-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(124, 92, 255, 0.15);
+  color: var(--ac);
+  white-space: nowrap;
+}
+.chat-card-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tx);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-pin-btn {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  color: var(--tx);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.chat-pin-btn:hover {
+  background: var(--ac);
+  color: #fff;
+  border-color: var(--ac);
+}
+.chat-card-canvas {
+  width: 100%;
+}
 
 /* ---- Dashboard card controls ---- */
 .x { float: right; cursor: pointer; color: var(--mut); background: none; border: 0; font-size: 16px; padding: 6px 8px; font-size: 20px; line-height: 1; }
