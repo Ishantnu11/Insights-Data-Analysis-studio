@@ -206,28 +206,57 @@ export default function App() {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'OBJECT',
+              properties: {
+                reply: { type: 'STRING' },
+                widgets: {
+                  type: 'ARRAY',
+                  items: {
+                    type: 'OBJECT',
+                    properties: {
+                      type: { type: 'STRING' },
+                      x: { type: 'STRING' },
+                      y: { type: 'STRING' },
+                      agg: { type: 'STRING' },
+                      top: { type: 'INTEGER' },
+                      title: { type: 'STRING' }
+                    },
+                    required: ['type']
+                  }
+                }
+              },
+              required: ['reply', 'widgets']
+            },
             temperature: 0.2,
             maxOutputTokens: 4096
           }
         })
       })
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw { message: (err.error?.message || 'HTTP ' + res.status) } }
-      const raw = await res.json()
-      let txt = (raw.candidates?.[0]?.content?.parts?.[0]?.text || '').trim()
-      const firstBrace = txt.indexOf('{')
-      const lastBrace = txt.lastIndexOf('}')
-      if (firstBrace !== -1 && lastBrace !== -1) {
-        txt = txt.slice(firstBrace, lastBrace + 1)
-      }
-      let j = null
+      const rawText = await res.text()
+      let raw = {}
       try {
-        j = JSON.parse(txt)
+        raw = JSON.parse(rawText)
       } catch {
+        throw { message: 'Incomplete response received from Gemini API. Please try again.' }
+      }
+      let txt = (raw.candidates?.[0]?.content?.parts?.[0]?.text || '').trim()
+      let j = { reply: txt, widgets: [] }
+      if (txt) {
         try {
-          const cleaned = txt.replace(/[\r\n\t]/g, ' ')
-          j = JSON.parse(cleaned)
+          j = JSON.parse(txt)
         } catch {
-          j = { reply: txt.replace(/```(?:json)?/gi, '').trim(), widgets: [] }
+          const firstBrace = txt.indexOf('{')
+          const lastBrace = txt.lastIndexOf('}')
+          if (firstBrace !== -1 && lastBrace !== -1) {
+            try {
+              j = JSON.parse(txt.slice(firstBrace, lastBrace + 1))
+            } catch {
+              const m = txt.match(/"reply"\s*:\s*"([^"]+)"/)
+              j = { reply: m ? m[1] : txt.replace(/[{}"\\]/g, ' ').trim(), widgets: [] }
+            }
+          }
         }
       }
       const okc = n => cols.some(c => c.name === n)
