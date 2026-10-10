@@ -199,11 +199,37 @@ export default function App() {
     try {
       if (!GEMINI_KEY.trim()) throw { message: 'VITE_GEMINI_API_KEY env var not set. Add it in Vercel → Settings → Environment Variables.' }
       const prompt = 'You are a senior BI analyst. The user has a dataset with these columns: ' + JSON.stringify(cols.map(c => ({ name: c.name, type: c.num ? 'number' : 'text', uniqueValues: c.uniq, min: c.min, max: c.max, mean: c.mean }))) + '. There are ' + data.length + ' rows. Precomputed grouped sums: ' + summ(cols, data) + '. First 5 rows: ' + JSON.stringify(data.slice(0, 5)) + '.\nUser request: ' + t + '\nReply ONLY with valid JSON (no markdown fences): {"reply":"direct answer with exact numbers, then one short tip","widgets":[{"type":"bar|line|area|pie|scatter|kpi|table","x":"column","y":"column","agg":"sum|avg|count|max|min","top":5,"title":"optional label"}]}. Use only the exact column names listed. widgets may be an empty array.'
-      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=' + GEMINI_KEY.trim(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 1024 } }) })
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=' + GEMINI_KEY.trim(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.2,
+            maxOutputTokens: 4096
+          }
+        })
+      })
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw { message: (err.error?.message || 'HTTP ' + res.status) } }
       const raw = await res.json()
-      const txt = (raw.candidates?.[0]?.content?.parts?.[0]?.text || '').replace(/^```json\s*/, '').replace(/```\s*$/, '').trim()
-      const j = JSON.parse(txt)
+      let txt = (raw.candidates?.[0]?.content?.parts?.[0]?.text || '').trim()
+      const firstBrace = txt.indexOf('{')
+      const lastBrace = txt.lastIndexOf('}')
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        txt = txt.slice(firstBrace, lastBrace + 1)
+      }
+      let j = null
+      try {
+        j = JSON.parse(txt)
+      } catch {
+        try {
+          const cleaned = txt.replace(/[\r\n\t]/g, ' ')
+          j = JSON.parse(cleaned)
+        } catch {
+          j = { reply: txt.replace(/```(?:json)?/gi, '').trim(), widgets: [] }
+        }
+      }
       const okc = n => cols.some(c => c.name === n)
       const W = (j.widgets || []).filter(w => w.type && (w.type === 'table' || (w.type === 'kpi' ? okc(w.y) : okc(w.y) && okc(w.x)))).map(w => ({ ...w, agg: w.agg || 'sum' }))
       W.forEach(add)
