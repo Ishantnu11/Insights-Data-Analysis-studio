@@ -24,11 +24,16 @@ const fmt = n => Math.abs(n) >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : Math.abs(n) >
 const trunc = (s, max = 10) => { const str = String(s ?? ''); return str.length > max ? str.slice(0, max - 1) + '…' : str }
 const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const formatTick = (val, n) => {
-  const s = String(val ?? '')
-  const m = s.match(/^\d{4}-(\d{2})$/)
+  const s = String(val ?? '').trim()
+  const m = s.match(/^(\d{4})[-/](\d{1,2})$/)
   if (m) {
-    const idx = parseInt(m[1], 10)
-    if (idx >= 1 && idx <= 12) return monthNames[idx]
+    const idx = parseInt(m[2], 10)
+    if (idx >= 1 && idx <= 12) return monthNames[idx] + (n <= 5 ? " '" + m[1].slice(2) : '')
+  }
+  const m2 = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+  if (m2) {
+    const idx = parseInt(m2[2], 10)
+    if (idx >= 1 && idx <= 12) return monthNames[idx] + ' ' + parseInt(m2[3], 10)
   }
   return trunc(s, n <= 4 ? 14 : n <= 8 ? 10 : 7)
 }
@@ -92,14 +97,16 @@ function Chart({ w, rows, onPick }) {
     const t = d.reduce((a, b) => a + Math.abs(b.v), 0) || 1; let a0 = -Math.PI / 2
     return <svg viewBox="0 0 300 180" width="100%">{d.slice(0, 8).map((p, i) => { const a = Math.abs(p.v) / t * Math.PI * 2, a1 = a0 + a, c = [150 + 70 * Math.cos(a0), 90 + 70 * Math.sin(a0), 150 + 70 * Math.cos(a1), 90 + 70 * Math.sin(a1)]; const path = `M150 90L${c[0]} ${c[1]}A70 70 0 ${a > Math.PI ? 1 : 0} 1 ${c[2]} ${c[3]}Z`; a0 = a1; return <M.path key={i} onClick={() => onPick && onPick(x, p.k)} d={path} fill={COL[i % 8]} initial={{ opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * .06 }} style={{ transformOrigin: '150px 90px' }} /> })}<circle cx="150" cy="90" r="34" fill="var(--panel)" />{d.slice(0, 8).map((p, i) => <g key={i}><rect x="232" y={10 + i * 14} width="8" height="8" fill={COL[i % 8]} /><text x="244" y={18 + i * 14} fontSize="8.5" fill="var(--mut)">{trunc(p.k, 10)} {(Math.abs(p.v) / t * 100).toFixed(0)}%</text></g>)}</svg>
   }
-  const X = i => 36 + (i + .5) * (268 / n), Y = v => 146 - v / mx * 126
+  const X = i => 36 + (i + .5) * (268 / n), Y = v => 145 - v / mx * 125
   const pts = d.map((p, i) => `${X(i)},${Y(p.v)}`).join(' ')
   const isAngled = n > 6
-  return <svg viewBox="0 0 315 195" width="100%">
-    {[0, .5, 1].map(f => <g key={f}><line x1="36" x2="305" y1={146 - f * 126} y2={146 - f * 126} stroke="var(--line)" strokeDasharray="2 3" /><text x="32" y={149 - f * 126} fontSize="8" fill="var(--mut)" textAnchor="end">{fmt(mx * f)}</text></g>)}
-    {(type === 'bar' || type === 'hist') && d.map((p, i) => { const bw = Math.min(Math.max(10, 268 / n * .7), 36), h = Math.max(0, 146 - Y(p.v)); return <M.rect key={i} onClick={() => onPick && onPick(x, p.k)} style={{ cursor: onPick ? 'pointer' : 'default' }} x={X(i) - bw / 2} width={bw} rx="4" fill={COL[i % 8]} initial={{ height: 0, y: 146 }} animate={{ height: h, y: 146 - h }} transition={{ delay: i * .03, type: 'spring', stiffness: 120 }}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title></M.rect> })}
-    {(type === 'line' || type === 'area') && <>{type === 'area' && <M.polygon points={`${X(0)},146 ${pts} ${X(n - 1)},146`} fill={COL[1]} initial={{ opacity: 0 }} animate={{ opacity: .22 }} />}<M.polyline points={pts} fill="none" stroke={COL[type === 'area' ? 1 : 0]} strokeWidth="2.5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1 }} />{d.map((p, i) => <circle key={i} cx={X(i)} cy={Y(p.v)} r="2.5" fill={COL[0]}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title></circle>)}</>}
-    {d.map((p, i) => (n <= 14 || i % Math.ceil(n / 12) === 0) && <text key={i} x={X(i)} y="164" fontSize={n > 8 ? "7.5" : "8"} fill="var(--mut)" textAnchor={isAngled ? "end" : "middle"} transform={isAngled ? `rotate(-35, ${X(i)}, 164)` : undefined}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title>{formatTick(p.k, n)}</text>)}
+  const step = n > 20 ? Math.ceil(n / 10) : n > 14 ? 2 : 1
+  return <svg viewBox="0 0 320 205" width="100%">
+    {[0, .5, 1].map(f => <g key={f}><line x1="36" x2="305" y1={145 - f * 125} y2={145 - f * 125} stroke="var(--line)" strokeDasharray="2 3" /><text x="32" y={148 - f * 125} fontSize="8" fill="var(--mut)" textAnchor="end">{fmt(mx * f)}</text></g>)}
+    <line x1="36" x2="305" y1="145" y2="145" stroke="var(--line)" />
+    {(type === 'bar' || type === 'hist') && d.map((p, i) => { const bw = Math.min(Math.max(8, 268 / n * .7), 36), h = Math.max(0, 145 - Y(p.v)); return <M.rect key={i} onClick={() => onPick && onPick(x, p.k)} style={{ cursor: onPick ? 'pointer' : 'default' }} x={X(i) - bw / 2} width={bw} rx="4" fill={COL[i % 8]} initial={{ height: 0, y: 145 }} animate={{ height: h, y: 145 - h }} transition={{ delay: i * .03, type: 'spring', stiffness: 120 }}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title></M.rect> })}
+    {(type === 'line' || type === 'area') && <>{type === 'area' && <M.polygon points={`${X(0)},145 ${pts} ${X(n - 1)},145`} fill={COL[1]} initial={{ opacity: 0 }} animate={{ opacity: .22 }} />}<M.polyline points={pts} fill="none" stroke={COL[type === 'area' ? 1 : 0]} strokeWidth="2.5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1 }} />{d.map((p, i) => <circle key={i} cx={X(i)} cy={Y(p.v)} r="2.5" fill={COL[0]}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title></circle>)}</>}
+    {d.map((p, i) => (i % step === 0) && <text key={i} x={X(i)} y={isAngled ? 164 : 162} fontSize={n > 8 ? "7.5" : "8"} fill="var(--mut)" textAnchor={isAngled ? "end" : "middle"} transform={isAngled ? `rotate(-40 ${X(i)} 164)` : undefined}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title>{formatTick(p.k, n)}</text>)}
   </svg>
 }
 
