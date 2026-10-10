@@ -214,6 +214,16 @@ th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: lef
   color: #fff;
   border-color: var(--ac);
 }
+.chat-pin-btn.pri-btn {
+  background: var(--ac);
+  border-color: var(--ac);
+  color: #fff;
+}
+.chat-pin-btn.pri-btn:hover {
+  background: #4e7333;
+  border-color: #4e7333;
+  color: #fff;
+}
 .chat-card-canvas {
   width: 100%;
 }

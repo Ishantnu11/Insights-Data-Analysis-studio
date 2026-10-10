@@ -379,7 +379,25 @@ export default function App() {
                   <span className="chat-badge">{m.w.type}</span>
                   <span className="chat-card-title">{m.w.title || chartTitle(m.w)}</span>
                 </div>
-                <button className="chat-pin-btn" onClick={() => add(m.w)}>+ Add to Dashboard</button>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    className="chat-pin-btn pri-btn"
+                    onClick={() => {
+                      add(m.w)
+                      setTab('dash')
+                    }}
+                    title="Add chart and open dashboard"
+                  >
+                    + Add to Dashboard
+                  </button>
+                  <button
+                    className="chat-pin-btn"
+                    onClick={() => setTab('dash')}
+                    title="Open dashboard tab"
+                  >
+                    View Dashboard →
+                  </button>
+                </div>
               </div>
               <div className="chat-card-canvas">
                 <Chart w={m.w} rows={rows} />
