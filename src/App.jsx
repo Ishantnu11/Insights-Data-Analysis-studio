@@ -63,10 +63,10 @@ const chartTitle = w => w.title || (w.tf && w.tf !== 'none' ? w.tf + ' of ' + w.
 
 /* ---------- Chart component ---------- */
 function Chart({ w, rows, onPick }) {
-  const { type, x, y, agg, z, tgt } = w
+  const { type, x, y, agg, z, tgt, xLabel, yLabel } = w
   if (type === 'kpi') {
     const v = AG[agg](rows.map(r => agg === 'count' ? 1 : +r[y] || 0))
-    return <M.div initial={{ scale: .8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="kpi">{fmt(v)}{tgt ? <span style={{ fontSize: 13, marginLeft: 8, color: v >= tgt ? '#10b981' : '#f43f5e' }}>{v >= tgt ? '▲' : '▼'} {(v / tgt * 100).toFixed(0)}% of target</span> : null}<div className="mut" style={{ fontSize: 12, fontWeight: 400 }}>{agg} of {agg === 'count' ? 'rows' : y}</div></M.div>
+    return <M.div initial={{ scale: .8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="kpi">{fmt(v)}{tgt ? <span style={{ fontSize: 13, marginLeft: 8, color: v >= tgt ? '#10b981' : '#f43f5e' }}>{v >= tgt ? '▲' : '▼'} {(v / tgt * 100).toFixed(0)}% of target</span> : null}<div className="mut" style={{ fontSize: 12, fontWeight: 400 }}>{yLabel || `${agg} of ${agg === 'count' ? 'rows' : y}`}</div></M.div>
   }
   if (type === 'table') return <div className="scroll" style={{ maxHeight: 220 }}><table><thead><tr>{Object.keys(rows[0] || {}).map(k => <th key={k}>{k}</th>)}</tr></thead><tbody>{rows.slice(0, 30).map((r, i) => <tr key={i}>{Object.values(r).map((v, j) => <td key={j}>{v}</td>)}</tr>)}</tbody></table></div>
   if (type === 'stack' || type === 'heat') {
@@ -90,7 +90,7 @@ function Chart({ w, rows, onPick }) {
   }
   if (type === 'scatter') {
     const P = rows.slice(0, 300).map(r => [+r[x], +r[y]]).filter(p => !isNaN(p[0]) && !isNaN(p[1])); const mx = Math.max(...P.map(p => p[0]), 1), my = Math.max(...P.map(p => p[1]), 1)
-    return <svg viewBox="0 0 300 180" width="100%">{P.map((p, i) => <M.circle key={i} initial={{ r: 0 }} animate={{ r: 3 }} transition={{ delay: i * .002 }} cx={20 + p[0] / mx * 270} cy={160 - p[1] / my * 150} fill={COL[0]} opacity=".6" />)}<line x1="20" y1="160" x2="290" y2="160" stroke="var(--line)" /><line x1="20" y1="10" x2="20" y2="160" stroke="var(--line)" /><text x="150" y="176" fontSize="9" fill="var(--mut)" textAnchor="middle">{x} vs {y}</text></svg>
+    return <svg viewBox="0 0 300 180" width="100%">{P.map((p, i) => <M.circle key={i} initial={{ r: 0 }} animate={{ r: 3 }} transition={{ delay: i * .002 }} cx={20 + p[0] / mx * 270} cy={160 - p[1] / my * 150} fill={COL[0]} opacity=".6" />)}<line x1="20" y1="160" x2="290" y2="160" stroke="var(--line)" /><line x1="20" y1="10" x2="20" y2="160" stroke="var(--line)" /><text x="150" y="176" fontSize="9" fill="var(--mut)" textAnchor="middle">{xLabel || x} vs {yLabel || y}</text></svg>
   }
   const d = xf(type === 'hist' ? bins(rows, y) : group(rows, x, y, agg, w.top), w.tf); const mx = Math.max(...d.map(p => p.v), 1); const n = d.length || 1
   if (type === 'pie') {
@@ -101,12 +101,17 @@ function Chart({ w, rows, onPick }) {
   const pts = d.map((p, i) => `${X(i)},${Y(p.v)}`).join(' ')
   const isAngled = n > 6
   const step = n > 20 ? Math.ceil(n / 10) : n > 14 ? 2 : 1
-  return <svg viewBox="0 0 320 205" width="100%">
+  const hasXLabel = Boolean(xLabel)
+  const hasYLabel = Boolean(yLabel)
+  const viewBoxHeight = hasXLabel ? 222 : 205
+  return <svg viewBox={`0 0 320 ${viewBoxHeight}`} width="100%">
+    {hasYLabel && <text x="36" y="11" fontSize="7.5" fill="var(--mut)" fontWeight="600">{yLabel}</text>}
     {[0, .5, 1].map(f => <g key={f}><line x1="36" x2="305" y1={145 - f * 125} y2={145 - f * 125} stroke="var(--line)" strokeDasharray="2 3" /><text x="32" y={148 - f * 125} fontSize="8" fill="var(--mut)" textAnchor="end">{fmt(mx * f)}</text></g>)}
     <line x1="36" x2="305" y1="145" y2="145" stroke="var(--line)" />
     {(type === 'bar' || type === 'hist') && d.map((p, i) => { const bw = Math.min(Math.max(8, 268 / n * .7), 36), h = Math.max(0, 145 - Y(p.v)); return <M.rect key={i} onClick={() => onPick && onPick(x, p.k)} style={{ cursor: onPick ? 'pointer' : 'default' }} x={X(i) - bw / 2} width={bw} rx="4" fill={COL[i % 8]} initial={{ height: 0, y: 145 }} animate={{ height: h, y: 145 - h }} transition={{ delay: i * .03, type: 'spring', stiffness: 120 }}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title></M.rect> })}
     {(type === 'line' || type === 'area') && <>{type === 'area' && <M.polygon points={`${X(0)},145 ${pts} ${X(n - 1)},145`} fill={COL[1]} initial={{ opacity: 0 }} animate={{ opacity: .22 }} />}<M.polyline points={pts} fill="none" stroke={COL[type === 'area' ? 1 : 0]} strokeWidth="2.5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1 }} />{d.map((p, i) => <circle key={i} cx={X(i)} cy={Y(p.v)} r="2.5" fill={COL[0]}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title></circle>)}</>}
     {d.map((p, i) => (i % step === 0) && <text key={i} x={X(i)} y={isAngled ? 164 : 162} fontSize={n > 8 ? "7.5" : "8"} fill="var(--mut)" textAnchor={isAngled ? "end" : "middle"} transform={isAngled ? `rotate(-40 ${X(i)} 164)` : undefined}><title>{`${String(p.k)}: ${fmt(p.v)}`}</title>{formatTick(p.k, n)}</text>)}
+    {hasXLabel && <text x="170" y={isAngled ? 198 : 186} fontSize="8" fill="var(--mut)" fontWeight="600" textAnchor="middle">{xLabel}</text>}
   </svg>
 }
 
@@ -188,6 +193,9 @@ export default function App() {
   const load = (n, t) => { const r = Array.isArray(t) ? t : parseAny(n, t); if (r.length) { setData(r); setName(n); setFlt({ c: '', v: '' }); const p = profile(r), nu = p.find(c => c.num), ca = p.find(c => !c.num); setWs([nu && { id: 1, type: 'kpi', y: nu.name, agg: 'sum' }, nu && ca && { id: 2, type: 'bar', x: ca.name, y: nu.name, agg: 'sum' }, nu && ca && { id: 3, type: 'pie', x: ca.name, y: nu.name, agg: 'sum' }, { id: 4, type: 'table' }].filter(Boolean)); setTab('dash') } }
   const [nw, setNw] = useState({ type: 'bar', x: '', y: '', agg: 'sum', z: '', tf: 'none', tgt: '' })
   const [msg, setMsg] = useState('')
+  const [editingWidget, setEditingWidget] = useState(null)
+  const [editingTitleId, setEditingTitleId] = useState(null)
+  const [tempTitle, setTempTitle] = useState('')
   const [extra, setExtra] = useState([])
   const [hist, setHist] = useState([])
   const [cl, setCl] = useState({ col: '', v: '', op: '=' })
@@ -329,14 +337,68 @@ export default function App() {
           {flt.c && <select value={flt.v} onChange={e => setFlt({ ...flt, v: e.target.value })}><option value="">All</option>{[...new Set(data.map(r => r[flt.c]))].map(v => <option key={v}>{v}</option>)}</select>}
         </div>
         <div className="grid"><AP>{ws.map(w => <M.div key={w.id} layout="position" initial={{ opacity: 0, scale: .92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .9 }} whileHover={{ y: -3 }} id={'w' + w.id} onDragOver={e => e.preventDefault()} onDrop={() => drop(w.id)} style={{ position: 'relative', gridColumn: 'span ' + (w.span || (w.type === 'table' || w.wide ? 2 : 1)) }} className="card">
-          <button className="x" title="Remove" onClick={() => setWs(s => s.filter(z => z.id !== w.id))}>×</button>
-          <button className="x" title="Wide / narrow" onClick={() => wide(w.id)}>⇔</button>
-          <button className="x" title="Move later" onClick={() => mv(w.id, 1)}>›</button>
-          <button className="x" title="Move earlier" onClick={() => mv(w.id, -1)}>‹</button>
-          <button className="x" title="Export PNG" onClick={() => png(w.id)}>⤓</button>
-          <span className="x" draggable onDragStart={() => { dg.current = w.id }} title="Drag to reorder" style={{ cursor: 'grab' }}>⠿</span>
+          <div className="card-header-bar">
+            {editingTitleId === w.id ? (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 1, minWidth: 0, marginRight: 8 }}>
+                <input
+                  type="text"
+                  value={tempTitle}
+                  onChange={e => setTempTitle(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      setWs(s => s.map(z => z.id === w.id ? { ...z, title: tempTitle.trim() } : z))
+                      setEditingTitleId(null)
+                    } else if (e.key === 'Escape') {
+                      setEditingTitleId(null)
+                    }
+                  }}
+                  autoFocus
+                  style={{ fontSize: 12.5, padding: '2px 8px', minHeight: 28, height: 28, flex: 1 }}
+                />
+                <button
+                  className="b pri"
+                  style={{ minHeight: 28, height: 28, padding: '0 8px', fontSize: 12 }}
+                  title="Save title (Enter)"
+                  onClick={() => {
+                    setWs(s => s.map(z => z.id === w.id ? { ...z, title: tempTitle.trim() } : z))
+                    setEditingTitleId(null)
+                  }}
+                >
+                  ✓
+                </button>
+                <button
+                  className="b"
+                  style={{ minHeight: 28, height: 28, padding: '0 8px', fontSize: 12 }}
+                  title="Cancel (Esc)"
+                  onClick={() => setEditingTitleId(null)}
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                className="card-title-btn"
+                title="Click to rename title"
+                onClick={() => {
+                  setEditingTitleId(w.id)
+                  setTempTitle(w.title || chartTitle(w))
+                }}
+              >
+                <span>{w.title || chartTitle(w)}{w.top ? ` (top ${w.top})` : ''}</span>
+                <span className="edit-pencil">✎</span>
+              </button>
+            )}
+            <div className="card-ctrls">
+              <button className="x" title="Edit visual, labels & settings" onClick={() => setEditingWidget({ ...w })}>✎</button>
+              <button className="x" title="Export PNG" onClick={() => png(w.id)}>⤓</button>
+              <button className="x" title="Wide / narrow" onClick={() => wide(w.id)}>⇔</button>
+              <button className="x" title="Move earlier" onClick={() => mv(w.id, -1)}>‹</button>
+              <button className="x" title="Move later" onClick={() => mv(w.id, 1)}>›</button>
+              <button className="x" title="Remove" onClick={() => setWs(s => s.filter(z => z.id !== w.id))}>×</button>
+              <span className="x" draggable onDragStart={() => { dg.current = w.id }} title="Drag to reorder" style={{ cursor: 'grab' }}>⠿</span>
+            </div>
+          </div>
           <div onPointerDown={e => rs(e, w)} title="Drag to resize" style={{ position: 'absolute', right: 5, bottom: 5, width: 16, height: 16, cursor: 'nwse-resize', borderRight: '2px solid var(--mut)', borderBottom: '2px solid var(--mut)', borderRadius: 2, touchAction: 'none' }} />
-          <div className="mut" style={{ fontSize: 12, marginBottom: 6 }}>{chartTitle(w)}{w.top ? ` (top ${w.top})` : ''}</div>
           <div className={w.h ? 'cw' : ''} style={w.h ? { height: w.h } : {}}><Chart w={w} rows={rows} onPick={w.type === 'hist' ? null : (c, v) => setFlt({ c, v: String(v) })} /></div>
         </M.div>)}</AP></div>
         {!ws.length && <div className="card mut">Empty canvas — add a visual above or ask the AI Chat.</div>}
@@ -419,5 +481,153 @@ export default function App() {
         <div className="card" style={{ marginTop: 14 }}><b>Progress</b><div style={{ height: 8, background: 'var(--panel2)', borderRadius: 8, marginTop: 8, overflow: 'hidden' }}><M.div animate={{ width: Object.values(done).filter(Boolean).length / plan.flat(2).filter(x => !x.startsWith('Phase')).length * 100 + '%' }} style={{ height: '100%', background: 'linear-gradient(90deg,var(--ac),var(--ac2))' }} /></div></div>
       </>}
     </M.div></AP></main>
+    {editingWidget && (
+      <div className="modal-overlay" onClick={() => setEditingWidget(null)}>
+        <div className="modal-box" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3 className="modal-title">Customize Visual &amp; Labels</h3>
+            <button className="modal-close" onClick={() => setEditingWidget(null)}>✕</button>
+          </div>
+          <div className="form-group">
+            <label>Card Title</label>
+            <input
+              type="text"
+              value={editingWidget.title || ''}
+              placeholder={chartTitle({ ...editingWidget, title: '' })}
+              onChange={e => setEditingWidget({ ...editingWidget, title: e.target.value })}
+            />
+          </div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Chart Type</label>
+              <select
+                value={editingWidget.type}
+                onChange={e => setEditingWidget({ ...editingWidget, type: e.target.value })}
+              >
+                {['bar', 'line', 'area', 'pie', 'scatter', 'hist', 'stack', 'heat', 'box', 'funnel', 'kpi', 'table'].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Aggregation</label>
+              <select
+                value={editingWidget.agg || 'sum'}
+                onChange={e => setEditingWidget({ ...editingWidget, agg: e.target.value })}
+              >
+                {Object.keys(AG).map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+          </div>
+          {editingWidget.type !== 'kpi' && editingWidget.type !== 'table' && (
+            <div className="form-grid">
+              <div className="form-group">
+                <label>X-Axis Dimension</label>
+                <select
+                  value={editingWidget.x || ''}
+                  onChange={e => setEditingWidget({ ...editingWidget, x: e.target.value })}
+                >
+                  <option value="">Select column…</option>
+                  {cols.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Custom X-Axis Label</label>
+                <input
+                  type="text"
+                  placeholder={editingWidget.x || 'X-Axis Label'}
+                  value={editingWidget.xLabel || ''}
+                  onChange={e => setEditingWidget({ ...editingWidget, xLabel: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          {editingWidget.type !== 'table' && (
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Y-Axis Metric</label>
+                <select
+                  value={editingWidget.y || ''}
+                  onChange={e => setEditingWidget({ ...editingWidget, y: e.target.value })}
+                >
+                  <option value="">Select column…</option>
+                  {cols.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Custom Y-Axis Label</label>
+                <input
+                  type="text"
+                  placeholder={editingWidget.y || 'Y-Axis Label'}
+                  value={editingWidget.yLabel || ''}
+                  onChange={e => setEditingWidget({ ...editingWidget, yLabel: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          {(editingWidget.type === 'stack' || editingWidget.type === 'heat') && (
+            <div className="form-group">
+              <label>Series Column (Z)</label>
+              <select
+                value={editingWidget.z || ''}
+                onChange={e => setEditingWidget({ ...editingWidget, z: e.target.value })}
+              >
+                <option value="">Select column…</option>
+                {cols.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
+          {['line', 'area', 'bar'].includes(editingWidget.type) && (
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Trend Calculation</label>
+                <select
+                  value={editingWidget.tf || 'none'}
+                  onChange={e => setEditingWidget({ ...editingWidget, tf: e.target.value })}
+                >
+                  {[['none', 'As is'], ['run', 'Running total'], ['ma', '3-pt moving avg'], ['mom', 'Period-over-period %'], ['yoy', 'Year-over-year %']].map(([k, l]) => (
+                    <option key={k} value={k}>{l}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Limit (Top N items)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  placeholder="All items"
+                  value={editingWidget.top || ''}
+                  onChange={e => setEditingWidget({ ...editingWidget, top: e.target.value ? +e.target.value : undefined })}
+                />
+              </div>
+            </div>
+          )}
+          {editingWidget.type === 'kpi' && (
+            <div className="form-group">
+              <label>Target Value</label>
+              <input
+                type="number"
+                placeholder="Target (optional benchmark)"
+                value={editingWidget.tgt || ''}
+                onChange={e => setEditingWidget({ ...editingWidget, tgt: e.target.value ? +e.target.value : '' })}
+              />
+            </div>
+          )}
+          <div className="modal-actions">
+            <button className="b" onClick={() => setEditingWidget(null)}>Cancel</button>
+            <button
+              className="b pri"
+              onClick={() => {
+                setWs(s => s.map(z => z.id === editingWidget.id ? { ...z, ...editingWidget } : z))
+                setEditingWidget(null)
+              }}
+            >
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 }

@@ -229,8 +229,143 @@ th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: lef
 }
 
 /* ---- Dashboard card controls ---- */
+.card-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+  min-height: 28px;
+}
+.card-title-btn {
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tx);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  max-width: calc(100% - 160px);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.card-title-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--ac);
+}
+.card-title-btn .edit-pencil {
+  opacity: 0.35;
+  font-size: 11px;
+  transition: opacity 0.15s ease;
+}
+.card-title-btn:hover .edit-pencil {
+  opacity: 1;
+}
+.card-ctrls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.card-ctrls .x {
+  float: none;
+  font-size: 15px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.card-ctrls .x:hover {
+  background: rgba(0, 0, 0, 0.07);
+  color: var(--tx);
+}
 .x { float: right; cursor: pointer; color: var(--mut); background: none; border: 0; font-size: 16px; padding: 6px 8px; font-size: 20px; line-height: 1; }
 .cw svg { height: 100%; }
+
+/* ---- Modal Dialog ---- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.modal-box {
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  width: 520px;
+  max-width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 22px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+.modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0;
+}
+.modal-close {
+  background: none;
+  border: 0;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--mut);
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+}
+.modal-close:hover {
+  background: rgba(0, 0, 0, 0.07);
+  color: var(--tx);
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mut);
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
 
 /* ---- Home mosaic ---- */
 .mosaic {
